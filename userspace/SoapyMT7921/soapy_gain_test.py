@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """Gain control through the SoapySDR module (AGC vs manual hold).
 
   SOAPY_SDR_PLUGIN_PATH=build soapy_gain_test.py [FREQ_MHZ] [TONE_MHZ] [--seg S]

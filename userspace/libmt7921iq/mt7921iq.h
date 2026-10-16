@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-3-Clause-Clear */
+/* SPDX-License-Identifier: MIT */
 /*
  * libmt7921iq: decode the IQB2 stream of /dev/mt7921_iq_<phy> into complex
  * samples.

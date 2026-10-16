@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+// SPDX-License-Identifier: MIT
 /*
  * SoapySDR module for the MT7921AU (MT7961) I/Q stream of the mt7921 fork
  * driver: /dev/mt7921_iq_<phy>, decoded by libmt7921iq.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """Sustained-rate check through the SoapySDR module.
 
   SOAPY_SDR_PLUGIN_PATH=build soapy_rate_test.py RATE FREQ_MHZ SECONDS [TONE_MHZ]

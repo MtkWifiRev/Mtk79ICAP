@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 # Let members of plugdev stream and retune /dev/mt7921_iq_<phy> (gqrx etc.).
 # The monitor interface itself still needs root once: mt7921iq-setup.sh.
 KERNEL=="mt7921_iq_*", MODE="0660", GROUP="plugdev"

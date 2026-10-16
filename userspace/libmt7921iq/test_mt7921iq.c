@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+// SPDX-License-Identifier: MIT
 /*
  * Synthetic tests for the IQB2 decoder: a model of the firmware stream
  * (En32b64b records in a 16 or 64 KiB ring, 4 KiB blocks starting mid-line)

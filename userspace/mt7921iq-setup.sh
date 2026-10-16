@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: MIT
 # One-time (root) setup for SDR use of an mt7921u stick with the fork driver:
 # put its interface into monitor mode so /dev/mt7921_iq_<phy> can stream.
 # Retuning afterwards goes through the device (no root needed with the

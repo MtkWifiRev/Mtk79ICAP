@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """gqrx's path in miniature: gr-osmosdr source with a gqrx device string.
 
   SOAPY_SDR_PLUGIN_PATH=build osmosdr_test.py [TONE_MHZ] [F1_MHZ F2_MHZ]

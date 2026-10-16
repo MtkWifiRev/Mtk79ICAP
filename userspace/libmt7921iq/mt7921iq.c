@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+// SPDX-License-Identifier: MIT
 /*
  * libmt7921iq: IQB2 stream decoder. See mt7921iq.h.
  *

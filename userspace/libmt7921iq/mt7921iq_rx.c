@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause-Clear
+// SPDX-License-Identifier: MIT
 /*
  * mt7921iq_rx: record decoded I/Q from /dev/mt7921_iq_<phy> (like rtl_sdr).
  *
