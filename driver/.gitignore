@@ -1,0 +1,16 @@
+.*
+!.gitignore
+*.o
+*.ko
+*.mod
+*.mod.c
+*.symvers
+*.symvers.tmp
+modules.order
+ipkg-*
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake
+tools/Makefile
+tools/mt76-test
+__pycache__/
