@@ -1,0 +1,10 @@
+# userspace CMake builds (README: build-soapy/, or any build*/ directory)
+build/
+build-*/
+# Python
+__pycache__/
+*.pyc
+# outputs of the firmware patcher and the recorder, when run from the repo
+/WIFI_RAM_CODE_MT7961_1.bin
+*.cs16
+*.cf32
