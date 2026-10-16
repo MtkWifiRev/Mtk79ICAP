@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """Build the MT7921AU (MT7961) I/Q firmware iq_dma_v65 from your own linux-firmware copy.
 
   mt7961-iq-fw-v65.py [INPUT] [-o OUTPUT]
@@ -10,7 +11,7 @@ refused. The result (default ./WIFI_RAM_CODE_MT7961_1.bin) is checked against
 sha256 1c740c6fe17d9e3ccc175aaef74e10e5187b2bc404ec49096f8a21f1e9714e4f before it is written.
 
 The patch adds the I/Q stream code (hooks plus a patch body in the firmware's
-code RAM) used by the mt7921-drv driver, and the version label "iq_dma_v65"
+code RAM) used by the driver in this repository (driver/), and the version label "iq_dma_v65"
 (shown as "WM Firmware Version" in the kernel log and by ethtool -i). Only
 the changed bytes (2834 in 11 runs) are in this file.
 
