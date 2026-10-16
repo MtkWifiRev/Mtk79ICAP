@@ -3,9 +3,8 @@
  * mt7921 ICAP (RBIST internal capture) support.
  *
  * Everything here was recovered from the MT7961 firmware (build 20260224) and
- * cross-checked against the working mt7915 implementation. See PLAN.mt7921.md
- * for the full trace; firmware addresses below refer to
- * WIFI_RAM_CODE_MT7961_1.elf.
+ * cross-checked against the working mt7915 implementation. Firmware
+ * addresses below refer to WIFI_RAM_CODE_MT7961_1 build 20260224.
  *
  * Command path:
  *   MCU_EXT_CMD(RF_TEST) 0x04 -> rlmTestExtCmdFsmEventTestCtrl @ 0x00933d86
@@ -56,7 +55,7 @@ enum mt7921_icap_subcmd {
  * The fields marked DEAD are never read on mt7961. The payload reaches
  * rlmTestSetIcapParam -> icapSpectrumSetParam -> icapSpectrumSetParam_hal,
  * plus icapSpectrumSetParam_rbist @ 0x0095c58a (missed by an earlier pass
- * because Ghidra truncated that function - README.mt7921-IQ.md §4.26).
+ * because Ghidra truncated that function).
  * The DEAD fields are not copied into the global ICAP context at
  * DAT_ram_0202e3d0 either. They are kept so the struct keeps its wire size
  * and stays diffable against mt7915.

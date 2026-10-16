@@ -3,9 +3,8 @@
  * mt7921 ICAP (RBIST internal capture) — raw I/Q capture over
  * MCU_EXT_CMD(RF_TEST).
  *
- * See spectrum.h for the firmware trace this is built from, and
- * PLAN.mt7921.md for the reasoning behind the two places where mt7961
- * deliberately diverges from the mt7915 implementation:
+ * See spectrum.h for the firmware trace this is built from. Two places
+ * where mt7961 deliberately diverges from the mt7915 implementation:
  *
  *   1. No host-side dump polling loop. mt7915's firmware emits one event per
  *      DUMP_DATA command, so its driver re-issues 0x11 until the capture
@@ -15,8 +14,8 @@
  *
  *   2. cap_src and cap_stop_cycle were long thought dead (spectrum.h) - they
  *      are in fact read by icapSpectrumSetParam_rbist @ 0x0095c58a, missed
- *      for a long time because Ghidra truncated that function
- *      (README.mt7921-IQ.md §4.26). The knobs are fully live.
+ *      for a long time because Ghidra truncated that function. The knobs
+ *      are fully live.
  */
 
 #include <linux/debugfs.h>

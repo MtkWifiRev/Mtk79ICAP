@@ -13,8 +13,7 @@
  * [head, tail + size) and the consumer only reads [tail, head), so the
  * reader's copy_to_user runs without the spinlock.
  *
- * Stream control (firmware v62 mode 6) follows iqdma_run.py, which proved it
- * on hardware (experiments/mt7921-mcu-wfdma-tx0-20260929): open() arms the
+ * Stream control (the patched firmware's mode 6): open() arms the
  * DLPF capture and starts the firmware scheduler, release() stops it and
  * restores every register it touched. Any other MCU command (retune,
  * interface changes) first stops the builder, then the stream restarts with
@@ -115,8 +114,8 @@ MODULE_PARM_DESC(iq_fw_check, "Stream only on a patched I/Q WM firmware, version
 /* DFE capture mux (MT7996 dfe.h names; same addresses on mt7961). The dense
  * single-chain mode writes one sample per 32-bit word, four consecutive
  * samples per 16-byte record, no packer (BirriaSDR's setting, with tap 12
- * instead of their tap 4: tap 12 carries the channel filter, tap 4 aliases;
- * experiments/mt7921-dense-mode-20261014). Rate field m: 40 MHz << (3 - m),
+ * instead of their tap 4: tap 12 carries the channel filter, tap 4 aliases).
+ * Rate field m: 40 MHz << (3 - m),
  * so m = 3 for 40 MS/s and m = 2 for 80 MS/s.
  */
 #define IQ_DFE_MODE		0x830ad440
@@ -131,7 +130,7 @@ MODULE_PARM_DESC(iq_fw_check, "Stream only on a patched I/Q WM firmware, version
 #define IQ_DFE_TAP_CHAIN0	12
 #define IQ_DFE_TAP_CHAIN1	13
 /* UDMA RX aggregation for DENSE80 (8 KiB blocks at 320 MB/s): 32 KiB per
- * bulk transfer, the setting validated with iqdma_run.py --usb-agg 32.
+ * bulk transfer, the setting validated in 3 x 30 s streams.
  */
 #define IQ_AGG_KIB		32
 #define IQ_AGG_TO		0x40
@@ -155,7 +154,7 @@ MODULE_PARM_DESC(iq_fw_check, "Stream only on a patched I/Q WM firmware, version
 #define IQ_RF_GAIN		0x768
 #define IQ_RF_GAIN_MASK		GENMASK(31, 23)
 #define IQ_RF_GAIN_HOLD(lna, lpf) (BIT(31) | (lna) << 27 | (lpf) << 23)
-/* 80 MHz on 2.4 GHz (experiments/mt7921-24g-80mhz-20261014). The vendor
+/* 80 MHz on 2.4 GHz. The vendor
  * firmware has no 2.4 GHz BW80 channel, so the driver sets a 40 MHz channel
  * and then writes the words in which a real 5 GHz BW80 channel differs from
  * it (BirriaSDR issue #1, vendor FUN_0093dbd4; measured on both): per chain

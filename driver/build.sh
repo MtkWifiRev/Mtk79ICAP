@@ -1,6 +1,8 @@
 #!/bin/sh
-# Build upstream mt76 for the mt7921 USB stick (0e8d:7961), targeting the
-# Ubuntu 24.04 HWE kernel 7.0.0-28-generic, inside a container.
+# SPDX-License-Identifier: BSD-3-Clause-Clear
+# Build the mt76 modules for the mt7921 USB stick (0e8d:7961) inside an
+# Ubuntu 24.04 container, for the Ubuntu kernel in KVER below (set it to your
+# kernel; the native build in the top-level README needs no container).
 #
 #   ./build.sh            build modules
 #   ./build.sh clean      clean build artifacts

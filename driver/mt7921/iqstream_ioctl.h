@@ -92,7 +92,7 @@ struct mt7921_iq_snap_meta {
  * 80 MHz on 2.4 GHz (centers 2422-2462 MHz, iq_dense only, else
  * -EOPNOTSUPP): the vendor firmware has no such channel, so the driver sets
  * the 40 MHz channel and widens it to the BW80 analog filter and digital
- * rate (experiments/mt7921-24g-80mhz-20261014): DENSE80, tones exact from
+ * rate: DENSE80, tones exact from
  * -35 to +39 MHz at center 2442; the low edge rolls off sooner (-39 MHz
  * about 20 dB down), +41..45 MHz fold in about 15 dB down.
  * With the module parameter iq_dense, 40 MHz streams DENSE40 (40.0016 MS/s,
@@ -113,7 +113,7 @@ struct mt7921_iq_snap_meta {
 #define MT7921_IQ_IOC_GET	_IOR('q', 2, struct mt7921_iq_tune)
 
 /*
- * Receive gain of the opener's stream (experiments/mt7921-g3-agc-20261014).
+ * Receive gain of the opener's stream.
  * AGC (the default; every open starts with it) lets the chip's AGC follow
  * the traffic on the primary 20 MHz: each detected frame dips the gain
  * (about -4 dB for 16-19 us) and can step the phase. HOLD fixes the RX
