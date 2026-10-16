@@ -7,6 +7,8 @@ samples from the chip's internal capture engine (ICAP) over USB.
 - **Use:** in your SDR applications through SoapySDR, alongside normal
   monitor-mode reception.
 
+![USB Stick I/Q in Gqrx](docs/gqrx.png)
+
 ## Features
 * Bands: 2.4 GHz and 5 GHz
 * Widths / rates: 20 MHz (20.0008 MS/s), 40 MHz (40.0016 MS/s), 80 MHz (80.0032 MS/s, continuous)
