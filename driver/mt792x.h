@@ -65,6 +65,7 @@
 #define MT792x_SDIO_HDR_PKT_TYPE	GENMASK(17, 16)
 
 struct mt792x_vif;
+struct mt7921_spectrum;
 struct mt792x_sta;
 
 struct mt792x_realease_info {
@@ -299,6 +300,9 @@ struct mt792x_dev {
 	u32 backup_l2;
 
 	struct ieee80211_chanctx_conf *new_ctx;
+
+	/* mt7921 ICAP / raw I/Q capture state; see mt7921/spectrum.h */
+	struct mt7921_spectrum *spectrum;
 };
 
 static inline struct mt792x_bss_conf *

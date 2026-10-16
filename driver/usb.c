@@ -15,6 +15,16 @@ static bool disable_usb_sg;
 module_param_named(disable_usb_sg, disable_usb_sg, bool, 0644);
 MODULE_PARM_DESC(disable_usb_sg, "Disable usb scatter-gather support");
 
+/* Every bulk-IN transfer ends its URB, so the data queue buffers rx_urbs
+ * transfers while the host is not servicing completions. The IQB2 stream
+ * sends one 4 KiB block per 25.6 us: 128 URBs ride out 3.3 ms, and the
+ * periodic ~3.4 ms host stalls seen on nb04 then stall the MCU DMA long
+ * enough for the ICAP ring to lap. 512 URBs (64 MiB of pages) cover 13 ms.
+ */
+static int rx_urbs = MT_NUM_RX_ENTRIES;
+module_param(rx_urbs, int, 0444);
+MODULE_PARM_DESC(rx_urbs, "Number of RX URBs on the data queue (16-2048)");
+
 int __mt76u_vendor_request(struct mt76_dev *dev, u8 req, u8 req_type,
 			   u16 val, u16 offset, void *buf, size_t len)
 {
@@ -519,6 +529,87 @@ mt76u_build_rx_skb(struct mt76_dev *dev, void *data,
 	return skb;
 }
 
+/* Length of the RX packet whose DMA header starts at @off, or 0 if the bytes
+ * there do not look like one (UDMA zero padding, end of data).
+ */
+static u16
+mt76u_agg_entry_len(struct urb *urb, u32 off)
+{
+	__le32 rxd0;
+	u16 len;
+
+	if (off + 0x18 > urb->actual_length ||
+	    sg_pcopy_to_buffer(urb->sg, urb->num_sgs, &rxd0, sizeof(rxd0),
+			       off) != sizeof(rxd0))
+		return 0;
+
+	len = le32_to_cpu(rxd0) & 0xffff;
+	if (len < 0x18 || off + len > urb->actual_length)
+		return 0;
+
+	return len;
+}
+
+/* UDMA RX aggregation packs several packets into one bulk transfer, each at
+ * the next 4-byte aligned offset, optionally followed by a 4-byte tail. It is
+ * off by default (mt792xu_dma_init) and enabled only for high-rate streams
+ * such as IQB2 I/Q blocks, where the fixed per-transfer cost dominates.
+ * Every packet is copied into its own skb so the URB pages stay in place.
+ */
+static int
+mt76u_process_rx_agg(struct mt76_dev *dev, struct urb *urb)
+{
+	u32 off = 0;
+
+	while (off < urb->actual_length) {
+		struct sk_buff *skb;
+		u16 len;
+
+		len = mt76u_agg_entry_len(urb, off);
+		if (!len) {
+			/* Packets may be followed by zero padding (seen after
+			 * short RX frames); skip zero words up to 2 KiB.
+			 */
+			u32 start = off;
+			__le32 w;
+
+			while (!len && off + 4 < urb->actual_length &&
+			       off - start < 2048) {
+				sg_pcopy_to_buffer(urb->sg, urb->num_sgs, &w,
+						   sizeof(w), off);
+				if (w)
+					break;
+				off += 4;
+				len = mt76u_agg_entry_len(urb, off);
+			}
+			if (!len) {
+				if (off + 0x18 <= urb->actual_length)
+					dev_warn_ratelimited(dev->dev,
+						"rx agg: unparsed data off=%u actual=%u\n",
+						off, urb->actual_length);
+				break;
+			}
+		}
+
+		skb = alloc_skb(MT_SKB_HEAD_LEN + len, GFP_ATOMIC);
+		if (!skb)
+			break;
+		skb_reserve(skb, MT_SKB_HEAD_LEN);
+		sg_pcopy_to_buffer(urb->sg, urb->num_sgs, skb_put(skb, len),
+				   len, off);
+		off += ALIGN(len, 4);
+
+		if (dev->drv->rx_check &&
+		    !dev->drv->rx_check(dev, skb->data, len)) {
+			dev_kfree_skb(skb);
+			continue;
+		}
+		dev->drv->rx_skb(dev, MT_RXQ_MAIN, skb, NULL);
+	}
+
+	return 0;
+}
+
 static int
 mt76u_process_rx_entry(struct mt76_dev *dev, struct urb *urb,
 		       int buf_size)
@@ -534,6 +625,11 @@ mt76u_process_rx_entry(struct mt76_dev *dev, struct urb *urb,
 	len = mt76u_get_rx_entry_len(dev, data, urb->actual_length);
 	if (len < 0)
 		return 0;
+
+	/* More than one packet (plus an optional 4-byte tail) in this URB */
+	if ((drv_flags & MT_DRV_RX_DMA_HDR) && urb->num_sgs &&
+	    urb->actual_length >= ALIGN(len, 4) + 0x18)
+		return mt76u_process_rx_agg(dev, urb);
 
 	head_room = drv_flags & MT_DRV_RX_DMA_HDR ? 0 : MT_DMA_HDR_LEN;
 	data_len = min_t(int, len, data_len - head_room);
@@ -678,6 +774,15 @@ mt76u_submit_rx_buffers(struct mt76_dev *dev, enum mt76_rxq_id qid)
 
 	spin_lock_irqsave(&q->lock, flags);
 	for (i = 0; i < q->ndesc; i++) {
+		/* A torn-down queue keeps its ndesc but has NULL urbs, and
+		 * mt76u_fill_bulk_urb() would write through them. Reachable
+		 * because mt7921u_mac_reset() resumes rx after a multi-second
+		 * wfsys reset, long enough for a concurrent
+		 * usb_queue_reset_device() unbind to free the urbs underneath.
+		 */
+		if (!q->entry[i].urb)
+			continue;
+
 		err = mt76u_submit_rx_buf(dev, qid, q->entry[i].urb);
 		if (err < 0)
 			break;
@@ -693,20 +798,21 @@ static int
 mt76u_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
 {
 	struct mt76_queue *q = &dev->q_rx[qid];
-	int i, err;
+	int i, err, n = MT_NUM_RX_ENTRIES;
+
+	if (qid == MT_RXQ_MAIN)
+		n = clamp(rx_urbs, 16, 2048);
 
 	err = mt76_create_page_pool(dev, q);
 	if (err)
 		return err;
 
 	spin_lock_init(&q->lock);
-	q->entry = devm_kcalloc(dev->dev,
-				MT_NUM_RX_ENTRIES, sizeof(*q->entry),
-				GFP_KERNEL);
+	q->entry = devm_kcalloc(dev->dev, n, sizeof(*q->entry), GFP_KERNEL);
 	if (!q->entry)
 		return -ENOMEM;
 
-	q->ndesc = MT_NUM_RX_ENTRIES;
+	q->ndesc = n;
 	q->buf_size = PAGE_SIZE;
 
 	for (i = 0; i < q->ndesc; i++) {
@@ -736,6 +842,10 @@ mt76u_free_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 		mt76u_urb_free(q->entry[i].urb);
 		q->entry[i].urb = NULL;
 	}
+	/* Drop the descriptor count with the urbs it describes, so a racing
+	 * mt76u_resume_rx() walks an empty queue instead of NULL entries.
+	 */
+	q->ndesc = 0;
 	page_pool_destroy(q->page_pool);
 	q->page_pool = NULL;
 }

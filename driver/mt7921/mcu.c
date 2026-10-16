@@ -6,6 +6,7 @@
 #include "mt7921.h"
 #include "regd.h"
 #include "mcu.h"
+#include "spectrum.h"
 #include "../mt76_connac2_mac.h"
 #include "../mt792x_trace.h"
 
@@ -299,6 +300,14 @@ mt7921_mcu_rx_unsolicited_event(struct mt792x_dev *dev, struct sk_buff *skb)
 
 	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	switch (rxd->eid) {
+	case MCU_EVENT_EXT:
+		if (rxd->ext_eid == MT7921_EXT_EVENT_RF_TEST ||
+		    rxd->ext_eid == MT7921_EXT_EVENT_SPECTRUM_CTRL)
+			mt7921_mcu_rx_spectrum_event(dev, skb);
+		else
+			dev_dbg(dev->mt76.dev,
+				"unhandled ext event 0x%x\n", rxd->ext_eid);
+		break;
 	case MCU_EVENT_BSS_BEACON_LOSS:
 		mt7921_mcu_connection_loss_event(dev, skb);
 		break;
@@ -358,6 +367,16 @@ void mt7921_mcu_rx_event(struct mt792x_dev *dev, struct sk_buff *skb)
 
 	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 
+	/* Rate-limited: a stuck ICAP dump emits ~1000 events/s, and an
+	 * unthrottled printk from the MCU RX path is slow enough to stall the
+	 * USB transport by itself.
+	 */
+	if (rxd->eid == MCU_EVENT_EXT)
+		dev_info_ratelimited(dev->mt76.dev,
+			 "EXT event: ext_eid=0x%02x seq=%u len=%u option=0x%02x\n",
+			 rxd->ext_eid, rxd->seq, le16_to_cpu(rxd->len),
+			 rxd->option);
+
 	if (rxd->option & MCU_UNI_CMD_UNSOLICITED_EVENT) {
 		mt7921_mcu_uni_rx_unsolicited_event(dev, skb);
 		return;
@@ -368,7 +387,16 @@ void mt7921_mcu_rx_event(struct mt792x_dev *dev, struct sk_buff *skb)
 		return;
 	}
 
-	if (rxd->ext_eid == MCU_EXT_EVENT_RATE_REPORT ||
+	/* Only ICAP/spectrum ext events are unsolicited here. Do NOT match on
+	 * eid == MCU_EVENT_EXT alone: that value is 0xed, the same as
+	 * MCU_CMD_EXT_CID, so every EXT *command response* carries it and
+	 * would be swallowed by the unsolicited path instead of waking its
+	 * waiter -- which times out firmware download and breaks init.
+	 */
+	if ((rxd->eid == MCU_EVENT_EXT &&
+	     (rxd->ext_eid == MT7921_EXT_EVENT_RF_TEST ||
+	      rxd->ext_eid == MT7921_EXT_EVENT_SPECTRUM_CTRL)) ||
+	    rxd->ext_eid == MCU_EXT_EVENT_RATE_REPORT ||
 	    rxd->eid == MCU_EVENT_BSS_BEACON_LOSS ||
 	    rxd->eid == MCU_EVENT_SCHED_SCAN_DONE ||
 	    rxd->eid == MCU_EVENT_RSSI_NOTIFY ||
@@ -571,6 +599,9 @@ static void mt7921_mcu_parse_phy_cap(struct mt76_dev *dev,
 	dev->phy.chainmask = dev->phy.antenna_mask;
 	dev->phy.cap.has_2ghz = cap->hw_path & BIT(WF0_24G);
 	dev->phy.cap.has_5ghz = cap->hw_path & BIT(WF0_5G);
+	dev_info(dev->dev,
+		 "phy cap: nss %u max_bw %u dbdc %u hw_path %#x he %u\n",
+		 cap->nss, cap->max_bw, cap->dbdc, cap->hw_path, cap->he);
 }
 
 static int mt7921_mcu_get_nic_capability(struct mt792x_phy *mphy)

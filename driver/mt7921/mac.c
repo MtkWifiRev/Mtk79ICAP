@@ -9,6 +9,7 @@
 #include "../mt76_connac2_mac.h"
 #include "regd.h"
 #include "mcu.h"
+#include "iqstream.h"
 
 #define MT_WTBL_TXRX_CAP_RATE_OFFSET	7
 #define MT_WTBL_TXRX_RATE_G2_HE		24
@@ -595,6 +596,12 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 
 	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
 	flag = le32_get_bits(rxd[0], MT_RXD0_PKT_FLAG);
+
+	/* IQB2 blocks look like MCU events; take them before the event path
+	 * linearizes the skb. See iqstream.h.
+	 */
+	if (type == PKT_TYPE_RX_EVENT && flag != 0x1 && mt7921_iqs_rx(dev, skb))
+		return;
 
 	if (type == PKT_TYPE_RX_EVENT && flag == 0x1)
 		type = PKT_TYPE_NORMAL_MCU;

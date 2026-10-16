@@ -2,6 +2,7 @@
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include "mt7921.h"
+#include "spectrum.h"
 
 static int
 mt7921_reg_set(void *data, u64 val)
@@ -290,5 +291,8 @@ int mt7921_init_debugfs(struct mt792x_dev *dev)
 	if (mt76_is_sdio(&dev->mt76))
 		debugfs_create_devm_seqfile(dev->mt76.dev, "sched-quota", dir,
 					    mt7921s_sched_quota_read);
+
+	mt7921_spectrum_init(dev, dir);
+
 	return 0;
 }

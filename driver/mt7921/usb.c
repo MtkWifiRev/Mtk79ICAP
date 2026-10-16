@@ -9,6 +9,7 @@
 #include <linux/usb.h>
 
 #include "mt7921.h"
+#include "iqstream.h"
 #include "mcu.h"
 #include "../mt76_connac2_mac.h"
 
@@ -41,6 +42,9 @@ mt7921u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	ret = mt76_connac2_mcu_fill_message(mdev, skb, cmd, seq);
 	if (ret)
 		return ret;
+
+	/* A running I/Q stream owns the MCU; stop it first. */
+	mt7921_iqs_mcu_guard(dev, cmd);
 
 	mdev->mcu.timeout = 3 * HZ;
 
@@ -88,6 +92,7 @@ static int mt7921u_mac_reset(struct mt792x_dev *dev)
 {
 	int err;
 
+	mt7921_iqs_chip_reset(dev);
 	mt792xu_reset_on_bus_error(dev);
 	if (atomic_read(&dev->mt76.bus_hung))
 		return 0;
@@ -143,6 +148,67 @@ out:
 	mt76_worker_enable(&dev->mt76.tx_worker);
 
 	return err;
+}
+
+/*
+ * Analog (RF) registers sit behind the RF SPI bridge at 0x7c004000, reached
+ * with plain vendor requests (USB_TYPE_VENDOR, 0x63/0x66), not the
+ * mt792xu_rr/wr request type. Wi-Fi ports 0/1 use the command/data/result
+ * triplet +0x10/+0x14/+0x18 with busy bit 1, TOP (port 5) +0x50.. with busy
+ * bit 5. Writing DATA launches the transfer. Sequence from BirriaSDR
+ * (src/chips/mt7921_rf.c). The vendor firmware uses the same bridge; the
+ * busy poll serialises single transactions, not read-modify-write pairs.
+ */
+#define MT7921U_RF_BRIDGE	0x7c004000
+#define MT7921U_RF_POLLS	1000
+
+static u32 mt7921u_br_rr(struct mt792x_dev *dev, u32 addr)
+{
+	return ___mt76u_rr(&dev->mt76, MT_VEND_READ_EXT,
+			   USB_DIR_IN | USB_TYPE_VENDOR, addr);
+}
+
+static void mt7921u_br_wr(struct mt792x_dev *dev, u32 addr, u32 val)
+{
+	___mt76u_wr(&dev->mt76, MT_VEND_WRITE_EXT,
+		    USB_DIR_OUT | USB_TYPE_VENDOR, addr, val);
+}
+
+static int mt7921u_br_idle(struct mt792x_dev *dev, u32 busy)
+{
+	int i;
+
+	for (i = 0; i < MT7921U_RF_POLLS; i++)
+		if (!(mt7921u_br_rr(dev, MT7921U_RF_BRIDGE) & busy))
+			return 0;
+	return -ETIMEDOUT;
+}
+
+static int mt7921u_rf_xfer(struct mt792x_dev *dev, u32 port, u32 addr,
+			   u32 *val, bool read)
+{
+	u32 cmd, busy, ctl;
+	int ret;
+
+	if ((port != 0 && port != 1 && port != 5) || addr > 0xfff || (addr & 3))
+		return -EINVAL;
+	cmd = MT7921U_RF_BRIDGE + (port == 5 ? 0x50 : 0x10);
+	busy = BIT(port == 5 ? 5 : 1);
+
+	mutex_lock(&dev->mt76.usb.usb_ctrl_mtx);
+	ret = mt7921u_br_idle(dev, busy);
+	if (ret)
+		goto out;
+	ctl = mt7921u_br_rr(dev, cmd);
+	ctl = (ctl & 0xffff0000) | port << 13 | addr | (read ? 0x1000 : 0);
+	mt7921u_br_wr(dev, cmd, ctl);
+	mt7921u_br_wr(dev, cmd + 4, read ? 0 : *val);
+	ret = mt7921u_br_idle(dev, busy);
+	if (!ret && read)
+		*val = mt7921u_br_rr(dev, cmd + 8);
+out:
+	mutex_unlock(&dev->mt76.usb.usb_ctrl_mtx);
+	return ret;
 }
 
 static int mt7921u_probe(struct usb_interface *usb_intf,
@@ -241,6 +307,7 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	/* check hw sg support in order to enable AMSDU */
 	hw->max_tx_fragments = mdev->usb.sg_en ? MT_HW_TXP_MAX_BUF_NUM : 1;
 
+	mt7921_iqs_set_rf_xfer(mt7921u_rf_xfer);
 	ret = mt7921_register_device(dev);
 	if (ret)
 		goto error;
@@ -333,11 +400,21 @@ MODULE_DEVICE_TABLE(usb, mt7921u_device_table);
 MODULE_FIRMWARE(MT7921_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7921_ROM_PATCH);
 
+static void mt7921u_disconnect(struct usb_interface *usb_intf)
+{
+	struct mt792x_dev *dev = usb_get_intfdata(usb_intf);
+
+	/* Stop an I/Q stream while the chip still answers. */
+	if (dev)
+		mt7921_iqs_shutdown(dev);
+	mt792xu_disconnect(usb_intf);
+}
+
 static struct usb_driver mt7921u_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= mt7921u_device_table,
 	.probe		= mt7921u_probe,
-	.disconnect	= mt792xu_disconnect,
+	.disconnect	= mt7921u_disconnect,
 #ifdef CONFIG_PM
 	.suspend	= mt7921u_suspend,
 	.resume		= mt7921u_resume,

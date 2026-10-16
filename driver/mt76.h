@@ -669,7 +669,10 @@ struct mt76_mcu {
 };
 
 #define MT_TX_SG_MAX_SIZE	8
-#define MT_RX_SG_MAX_SIZE	4
+/* 32 pages (128 KiB) per bulk-IN URB, so UDMA RX aggregates of up to 96 KiB
+ * plus one maximum-size packet always fit (see mt76u_process_rx_agg()).
+ */
+#define MT_RX_SG_MAX_SIZE	32
 #define MT_NUM_TX_ENTRIES	256
 #define MT_NUM_RX_ENTRIES	128
 #define MCU_RESP_URB_SIZE	1024
