@@ -7,12 +7,12 @@ samples from the chip's internal capture engine (ICAP) over USB.
 - **Use:** in your SDR applications through SoapySDR, alongside normal
   monitor-mode reception.
 
-|---|---|
-| Bands | 2.4 GHz and 5 GHz |
-| Widths / rates | 20 MHz (20.0008 MS/s), 40 MHz (40.0016 MS/s), 80 MHz (80.0032 MS/s, continuous) |
-| Tuning | any frequency: 5 MHz hardware raster plus a software NCO, 15–20 ms per hardware retune |
-| Gain | chip AGC, or a fixed gain: LNA 0–18 dB and LPF 0–16 dB elements |
-| Interfaces | `/dev/mt7921_iq_<phy>`, `libmt7921iq` + `mt7921iq_rx`, SoapySDR module `driver=mt7921` |
+## Features
+* Bands: 2.4 GHz and 5 GHz
+* Widths / rates: 20 MHz (20.0008 MS/s), 40 MHz (40.0016 MS/s), 80 MHz (80.0032 MS/s, continuous)
+* Tuning: any frequency: 5 MHz hardware raster plus a software NCO, 15–20 ms per hardware retune
+* Gain: chip AGC, or a fixed gain: LNA 0–18 dB and LPF 0–16 dB elements |
+* Interfaces | `/dev/mt7921_iq_<phy>`, `libmt7921iq` + `mt7921iq_rx`, SoapySDR module `driver=mt7921` |
 
 > Experimental. Levels are not calibrated, and some register settings were
 > found by reverse engineering. A wedged stick needs a replug.
