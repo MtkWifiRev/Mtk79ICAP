@@ -29,6 +29,7 @@ import argparse
 import hashlib
 import lzma
 import os
+import re
 import subprocess
 import sys
 
@@ -38,6 +39,9 @@ IN_SHA256 = "b94217a951518a9c14095765f367bc5dd7698f2dc033941d6f18fc2ebd6a2ab9"
 OUT_SHA256 = "1c740c6fe17d9e3ccc175aaef74e10e5187b2bc404ec49096f8a21f1e9714e4f"
 FW_DIR = "/lib/firmware/mediatek"
 FW_NAME = "WIFI_RAM_CODE_MT7961_1.bin"
+BUILD = "20260224110949"
+STOCK_URL = ("https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/"
+             "mediatek/WIFI_RAM_CODE_MT7961_1.bin?id=ced02591a80209ece29604db57ee87126293a3f0")
 # (file offset, new bytes as hex)
 RUNS = [
     (0x0017a0, "44000002"),
@@ -66,14 +70,24 @@ def load(path):
         return f.read()
 
 
+def build(data):
+    m = re.search(rb"20\d{12}", data[-64:])
+    return m.group().decode() if m else "?"
+
+
 def find_input():
+    found = []
     for ext in ("", ".zst", ".xz"):
         p = os.path.join(FW_DIR, FW_NAME + ext)
         if os.path.exists(p):
             data = load(p)
             if hashlib.sha256(data).hexdigest() == IN_SHA256:
                 return p, data
-    sys.exit("no stock %s (sha256 %s) in %s; give the file as INPUT" % (FW_NAME, IN_SHA256, FW_DIR))
+            found.append("  %s: build %s, sha256 %s" % (p, build(data), hashlib.sha256(data).hexdigest()))
+    sys.exit("no stock %s (build %s, sha256 %s) in %s%s\n"
+             "download it and give it as INPUT:\n  curl -o %s.stock '%s'"
+             % (FW_NAME, BUILD, IN_SHA256, FW_DIR,
+                ":\n" + "\n".join(found) if found else "", FW_NAME, STOCK_URL))
 
 
 def main():
@@ -104,7 +118,7 @@ def main():
     with open(a.output, "wb") as f:
         f.write(out)
     print("%s -> %s (%s, sha256 %s)" % (src, a.output, NAME, OUT_SHA256))
-    print("install: install -m 644 %s %s/   then reload the driver or replug the stick" % (a.output, FW_DIR))
+    print("install: sudo install -m 644 %s %s/%s   then reload the driver or replug the stick" % (a.output, FW_DIR, FW_NAME))
 
 
 if __name__ == "__main__":
