@@ -11,11 +11,22 @@ samples from the chip's internal capture engine (ICAP) over USB.
 * Bands: 2.4 GHz and 5 GHz
 * Widths / rates: 20 MHz (20.0008 MS/s), 40 MHz (40.0016 MS/s), 80 MHz (80.0032 MS/s, continuous)
 * Tuning: any frequency: 5 MHz hardware raster plus a software NCO, 15–20 ms per hardware retune
-* Gain: chip AGC, or a fixed gain: LNA 0–18 dB and LPF 0–16 dB elements |
-* Interfaces | `/dev/mt7921_iq_<phy>`, `libmt7921iq` + `mt7921iq_rx`, SoapySDR module `driver=mt7921` |
+* Gain: chip AGC, or a fixed gain: LNA 0–18 dB and LPF 0–16 dB elements
+* Interfaces: `/dev/mt7921_iq_<phy>`, `libmt7921iq` + `mt7921iq_rx`, SoapySDR module `driver=mt7921`
 
 > Experimental. Levels are not calibrated, and some register settings were
 > found by reverse engineering. A wedged stick needs a replug.
+
+## Dependencies
+
+| Needed for | Debian / Ubuntu | Arch |
+|---|---|---|
+| Firmware patcher (`.zst` input needs `zstd`) | `python3 zstd` | `python zstd` |
+| Driver (`zstd` compresses modules on install where the kernel uses it) | `build-essential linux-headers-$(uname -r) zstd` | `base-devel linux-headers zstd` |
+| Monitor-mode setup | `iw iproute2` | `iw iproute2` |
+| Userspace, SoapySDR module | `cmake libsoapysdr-dev soapysdr-tools` | `cmake soapysdr` |
+| Optional: SDR applications | `gqrx-sdr` or SDR++ | `gqrx` or SDR++ (AUR) |
+| Optional: test scripts in `userspace/SoapyMT7921/` | `python3-soapysdr python3-numpy gr-osmosdr` | `soapysdr python-numpy gnuradio-osmosdr` |
 
 ## 1. Firmware
 
