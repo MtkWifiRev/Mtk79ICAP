@@ -99,7 +99,9 @@ sudo userspace/mt7921iq-setup.sh                     # puts the stick's interfac
 ```
 
 **Access without root:** install `userspace/udev/99-mt7921-iq.rules` and
-add yourself to the group `plugdev`. Streaming and retuning then work as a
+add yourself to the group `plugdev`, or, for a quick test,
+`sudo chmod 666 /dev/mt7921_iq_*` (lost on a driver reload or replug).
+Streaming and retuning then work as a
 normal user.
 
 ## 3. Userspace and SDR applications
