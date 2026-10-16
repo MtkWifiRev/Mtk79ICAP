@@ -1,4 +1,4 @@
-# Mtk79ICAP: an MT7921AU Wi-Fi stick as an SDR receiver
+# Mtk79ICAP: Use MT7921AU Wi-Fi stick (AX1800) as an SDR receiver
 
 **What it is:** a fork of the Linux [mt76](https://github.com/openwrt/mt76)
 driver plus a small firmware patch. Together they stream raw 14-bit I/Q
@@ -7,7 +7,6 @@ samples from the chip's internal capture engine (ICAP) over USB.
 - **Use:** in your SDR applications through SoapySDR, alongside normal
   monitor-mode reception.
 
-| | |
 |---|---|
 | Bands | 2.4 GHz and 5 GHz |
 | Widths / rates | 20 MHz (20.0008 MS/s), 40 MHz (40.0016 MS/s), 80 MHz (80.0032 MS/s, continuous) |
