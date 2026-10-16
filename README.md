@@ -26,7 +26,7 @@ distribution installed (linux-firmware build `20260224110949`, sha256
 `b94217a9…`); anything else is refused.
 
 ```sh
-python3 patcher/mt7961-iq-fw-v65.py           # finds /lib/firmware/mediatek/WIFI_RAM_CODE_MT7961_1.bin{,.zst,.xz}
+python3 firmware/mt7961-iq-fw-v65.py          # finds /lib/firmware/mediatek/WIFI_RAM_CODE_MT7961_1.bin{,.zst,.xz}
 sudo install -m 644 WIFI_RAM_CODE_MT7961_1.bin /lib/firmware/mediatek/
 ```
 
