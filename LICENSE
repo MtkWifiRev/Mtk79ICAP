@@ -20,5 +20,25 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-This licence covers the files outside driver/. See "License" in README.md
-for driver/ (mt76, BSD-3-Clause-Clear) and the other licences involved.
+-------------------------------------------------------------------------------
+
+Scope and other licences
+
+The MIT licence above covers this project's own files: userspace/,
+firmware/ and the documentation. Other licences involved:
+
+- driver/: the mt76 Linux driver, including our I/Q additions and changes.
+  Licence: BSD-3-Clause-Clear (mt76's licence); see driver/LICENSE and the
+  SPDX headers.
+
+- MediaTek firmware (WIFI_RAM_CODE_MT7961_1.bin): not in this repository.
+  firmware/ holds only our changes plus checksums, and the patcher modifies
+  your own copy. Licence: MediaTek's firmware licence, LICENCE.mediatek in
+  linux-firmware.
+
+- SoapySDR, which the Soapy module builds against.
+  Licence: Boost Software License 1.0; see the SoapySDR project.
+
+- Nexmon, the framework the firmware patch is built with (the patch build is
+  not part of this repository). Licence: Nexmon's licence; see the Nexmon
+  project.

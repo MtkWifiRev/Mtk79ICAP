@@ -164,15 +164,8 @@ mt7921iq_rx -F 2442 -w 80 -t 10 out.cs16   # 80 MHz centred at 2442 MHz, 10 s
 
 ## License
 
-This project (`userspace/`, `firmware/`, the documentation) is under the
-**MIT** licence, see `LICENSE`. Other licences involved:
-
-| What | Licence | Where |
-|---|---|---|
-| `driver/`: the mt76 Linux driver, including our I/Q additions and changes | BSD-3-Clause-Clear (mt76's licence) | `driver/LICENSE`, SPDX headers |
-| MediaTek firmware (`WIFI_RAM_CODE_MT7961_1.bin`): **not in this repository**; `firmware/` holds only our changes plus checksums, and the patcher modifies your own copy | MediaTek's firmware licence | `LICENCE.mediatek` in linux-firmware |
-| SoapySDR, which the Soapy module builds against | Boost Software License 1.0 | SoapySDR project |
-| Nexmon, the framework the firmware patch is built with (the patch build is not part of this repository) | Nexmon's licence | Nexmon project |
+MIT for this project's own files; `driver/` is mt76's BSD-3-Clause-Clear.
+See `LICENSE` for the details and the other licences involved.
 
 ## Acknowledgements
 
