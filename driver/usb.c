@@ -18,7 +18,7 @@ MODULE_PARM_DESC(disable_usb_sg, "Disable usb scatter-gather support");
 /* Every bulk-IN transfer ends its URB, so the data queue buffers rx_urbs
  * transfers while the host is not servicing completions. The IQB2 stream
  * sends one 4 KiB block per 25.6 us: 128 URBs ride out 3.3 ms, and the
- * periodic ~3.4 ms host stalls seen on nb04 then stall the MCU DMA long
+ * periodic ~3.4 ms host stalls seen on a test host then stall the MCU DMA long
  * enough for the ICAP ring to lap. 512 URBs (64 MiB of pages) cover 13 ms.
  */
 static int rx_urbs = MT_NUM_RX_ENTRIES;
