@@ -21,12 +21,24 @@ sha256 `b94217a951518a9c14095765f367bc5dd7698f2dc033941d6f18fc2ebd6a2ab9`.
   it is written.
 - Python 3 standard library only; `.zst` input needs the `zstd` tool.
 
+**Where to get the stock file:** linux-firmware ships it since commit
+[`ced02591a802`](https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/commit/?id=ced02591a80209ece29604db57ee87126293a3f0)
+(2026-03-13, "update firmware for MT7921 WiFi device"); releases from then on
+have it. If your distribution has an older or newer one, download that
+version and pass it to the patcher:
+
+```sh
+curl -o WIFI_RAM_CODE_MT7961_1.stock.bin \
+  'https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/mediatek/WIFI_RAM_CODE_MT7961_1.bin?id=ced02591a80209ece29604db57ee87126293a3f0'
+python3 mt7961-iq-fw-v65.py WIFI_RAM_CODE_MT7961_1.stock.bin
+```
+
 **What the result changes:**
 - **The I/Q stream code:** hooks plus a patch body in code RAM.
 - **The version label `iq_dma_v65`:** the trailer's `fw_ver`, shown as "WM
   Firmware Version" in the kernel log and by `ethtool -i`. It is never loaded
   into the chip.
-- **The driver's check:** mt7921-drv streams only when the loaded firmware
+- **The driver's check:** the driver (`driver/`) streams only when the loaded firmware
   carries an `iq_dma_vNN` label (NN >= 65). On stock firmware `open()` fails
   with "Operation not supported", because the stream writes fixed MCU
   addresses that only the patch defines.
