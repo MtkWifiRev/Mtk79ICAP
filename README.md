@@ -45,14 +45,14 @@ You need the kernel headers of the running kernel. It is tested on Linux 7.0
 (Ubuntu 24.04 HWE) and 7.2 (Arch).
 
 ```sh
-make -j"$(nproc)" -C /lib/modules/$(uname -r)/build M=$PWD modules \
-  KCFLAGS="-include linux/version.h -include $PWD/compat-mt7921.h" \
+make -j"$(nproc)" -C /lib/modules/$(uname -r)/build M=$PWD/driver modules \
+  KCFLAGS="-include linux/version.h -include $PWD/driver/compat-mt7921.h" \
   CONFIG_MT76_USB=m CONFIG_MT76_CONNAC_LIB=m CONFIG_MT792x_LIB=m CONFIG_MT792x_USB=m \
   CONFIG_MT7921_COMMON=m CONFIG_MT7921U=m \
   CONFIG_MT76_SDIO= CONFIG_MT76x02_LIB= CONFIG_MT76x02_USB= CONFIG_MT76x0_COMMON= \
   CONFIG_MT76x2_COMMON= CONFIG_MT7603E= CONFIG_MT7615_COMMON= CONFIG_MT7915E= \
   CONFIG_MT7996E= CONFIG_MT7925_COMMON= CONFIG_MT7921E= CONFIG_MT7921S= CONFIG_MT76_NPU=
-sudo make -C /lib/modules/$(uname -r)/build M=$PWD INSTALL_MOD_DIR=updates modules_install
+sudo make -C /lib/modules/$(uname -r)/build M=$PWD/driver INSTALL_MOD_DIR=updates modules_install
 sudo depmod -a
 ```
 
@@ -151,6 +151,18 @@ mt7921iq_rx -F 2442 -w 80 -t 10 out.cs16   # 80 MHz centred at 2442 MHz, 10 s
 ## Opens
 - Enable TX
 - Explore DBDC (Dual-Band Dual-Concurrent)
+
+## License
+
+This project (`userspace/`, `firmware/`, the documentation) is under the
+**MIT** licence, see `LICENSE`. Other licences involved:
+
+| What | Licence | Where |
+|---|---|---|
+| `driver/`: the mt76 Linux driver, including our I/Q additions and changes | BSD-3-Clause-Clear (mt76's licence) | `driver/LICENSE`, SPDX headers |
+| MediaTek firmware (`WIFI_RAM_CODE_MT7961_1.bin`): **not in this repository**; `firmware/` holds only our changes plus checksums, and the patcher modifies your own copy | MediaTek's firmware licence | `LICENCE.mediatek` in linux-firmware |
+| SoapySDR, which the Soapy module builds against | Boost Software License 1.0 | SoapySDR project |
+| Nexmon, the framework the firmware patch is built with (the patch build is not part of this repository) | Nexmon's licence | Nexmon project |
 
 ## Acknowledgements
 
