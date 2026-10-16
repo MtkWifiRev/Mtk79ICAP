@@ -25,7 +25,7 @@ samples from the chip's internal capture engine (ICAP) over USB.
 | Driver (`zstd` compresses modules on install where the kernel uses it) | `build-essential linux-headers-$(uname -r) zstd` | `base-devel linux-headers zstd` |
 | Monitor-mode setup | `iw iproute2` | `iw iproute2` |
 | Userspace, SoapySDR module | `cmake libsoapysdr-dev soapysdr-tools` | `cmake soapysdr` |
-| Optional: SDR applications | `gqrx-sdr` or SDR++ | `gqrx` or SDR++ (AUR) |
+| Optional: SDR applications | `gqrx-sdr`, `gnuradio` or SDR++ | `gqrx`, `gnuradio` or SDR++ (AUR) |
 | Optional: test scripts in `userspace/SoapyMT7921/` | `python3-soapysdr python3-numpy gr-osmosdr` | `soapysdr python-numpy gnuradio-osmosdr` |
 
 ## 1. Firmware
@@ -143,6 +143,18 @@ mt7921iq_rx -F 2442 -w 80 -t 10 out.cs16   # 80 MHz centred at 2442 MHz, 10 s
 - **Gain:** the AGC toggle and the LNA/LPF sliders work as in gqrx.
 - **Module path:** SDR++ finds the module like any other SoapySDR module
   (installed, or via `SOAPY_SDR_PLUGIN_PATH`).
+
+**GNU Radio Companion** (tested with GNU Radio 3.10):
+- **Block:** "Soapy Custom Source" with device `driver=mt7921`, type `fc32`
+  or `sc16`, empty stream and tune args. "osmocom Source" works too, with
+  device arguments `soapy=0,driver=mt7921`.
+- **Sample rate:** `20000800`, `40001600` or `80003200`, as in gqrx.
+- **Device options:** append `,chain=1` for RX chain 1, or
+  `,device=/dev/mt7921_iq_phy1` to pick a stick.
+- **Gain:** AGC on uses the chip's AGC. With it off, set the gain elements
+  `LNA` (0–18 dB) and `LPF` (0–16 dB).
+- **80 MS/s:** GNU Radio itself is usually the bottleneck. Keep the
+  flowgraph light or decimate early.
 
 **Things to know:**
 - Only one program can open the stream at a time.
