@@ -17,8 +17,10 @@
  * - Tuning: the receiver tunes in 5 MHz steps (driver ioctl, ~15-20 ms gap).
  *   The remainder is shifted in software (NCO), so every requested
  *   frequency is exact. Retunes run on a tuner thread and coalesce, so
- *   setFrequency() never blocks the caller; until the new generation
- *   arrives, samples of older generations are dropped.
+ *   setFrequency() never blocks the caller; until the tune is done,
+ *   samples are dropped. Generations the driver starts on its own after a
+ *   tune (a restart at a slip-prone DMA alignment, or after an MCU command)
+ *   are at the same center and pass; those from before the tune do not.
  * - Chain: setting/device arg "chain" (0 or 1). With the driver's iq_dense,
  *   1 streams RX chain 1 (DFE tap 13) at the full rate; changing it retunes.
  *   Non-dense streams always carry chain 0.
@@ -53,16 +55,19 @@
 #include <complex>
 #include <condition_variable>
 #include <cstring>
+#include <deque>
 #include <fcntl.h>
 #include <glob.h>
 #include <map>
 #include <mutex>
 #include <poll.h>
 #include <stdexcept>
+#include <sys/ioctl.h>
 #include <thread>
 #include <unistd.h>
 #include <vector>
 
+#include "iqstream_ioctl.h"
 #include "mt7921iq.h"
 
 namespace {
@@ -73,6 +78,8 @@ const double kRate80 = MT7921IQ_SAMPLE_RATE_80;
 const double kRaster = 5e6;
 const size_t kMTU = 1 << 16;
 const size_t kRawRead = 4 << 20;
+/* Generations from before the latest tunes; random 31-bit ids */
+const size_t kStaleMax = 16;
 /* Gain elements in approximate dB, 0 at the lowest usable code (5 GHz). */
 const double kLnaMaxDb = (MT7921IQ_LNA_MAX - MT7921IQ_LNA_MIN) * MT7921IQ_LNA_STEP_DB;
 const double kLpfMaxDb = (MT7921IQ_LPF_MAX - MT7921IQ_LPF_MIN) * MT7921IQ_LPF_STEP_DB;
@@ -267,6 +274,7 @@ public:
 		_fd = fd;
 		_hwFreq = 0;
 		_waitGen = 0;
+		_stale.clear();
 		_dropUntilTuned = true;	/* first tune sets a known center */
 		_tunePending = true;
 		_gainPending = !_agc;	/* every open starts with the AGC */
@@ -656,6 +664,11 @@ private:
 				continue;
 			}
 			l.unlock();
+			/* The generation running now may not have reached
+			 * deliver() yet: mark it old too.
+			 */
+			struct mt7921_iq_tune cur = {};
+			bool haveCur = ioctl(fd, MT7921_IQ_IOC_GET, &cur) == 0;
 			double actual = 0;
 			uint32_t gen = 0;
 			unsigned abw = 0;
@@ -671,6 +684,10 @@ private:
 			/* Older generations are dropped after a retune, so only
 			 * the newest one needs its hardware center.
 			 */
+			if (haveCur && cur.generation)
+				addStale(cur.generation);
+			for (const auto &g : _genFreq)
+				addStale(g.first);
 			_genFreq.clear();
 			_genFreq[gen] = actual;
 			if (!_tunePending) {
@@ -691,13 +708,21 @@ private:
 		{
 			std::lock_guard<std::mutex> l(_mtx);
 			if (_dropUntilTuned) {
-				if (!_waitGen || c.generation != _waitGen)
-					return 0;
+				if (!_waitGen)
+					return 0;	/* tune requested or running */
 				_dropUntilTuned = false;
 			}
 			auto it = _genFreq.find(c.generation);
-			if (it == _genFreq.end())
-				return 0;	/* not ours: before the first tune */
+			if (it == _genFreq.end()) {
+				/* Not the tune's generation: one from before the
+				 * tune, or a restart by the driver since (realign
+				 * at a slip-prone DMA alignment, MCU command),
+				 * which is at the tuned center.
+				 */
+				if (!_hwFreq || isStale(c.generation))
+					return 0;
+				it = _genFreq.emplace(c.generation, _hwFreq).first;
+			}
 			hw = it->second;
 			_ncoStep = -2 * M_PI * (_freq - hw) /
 				   (c.sample_rate > 0 ? c.sample_rate : kRate20);
@@ -735,6 +760,21 @@ private:
 		flags |= SOAPY_SDR_HAS_TIME;
 		timeNs = (long long)c.time_ns;
 		return (int)n;
+	}
+
+	/* Caller holds _mtx. */
+	void addStale(uint32_t gen)
+	{
+		if (isStale(gen))
+			return;
+		if (_stale.size() >= kStaleMax)
+			_stale.pop_front();
+		_stale.push_back(gen);
+	}
+
+	bool isStale(uint32_t gen) const
+	{
+		return std::find(_stale.begin(), _stale.end(), gen) != _stale.end();
 	}
 
 	void closeDevice()
@@ -775,6 +815,7 @@ private:
 	bool _dropUntilTuned = false;
 	uint32_t _waitGen = 0;
 	std::map<uint32_t, double> _genFreq;
+	std::deque<uint32_t> _stale;	/* generations at an older center */
 
 	/* NCO */
 	double _ncoStep = 0;
