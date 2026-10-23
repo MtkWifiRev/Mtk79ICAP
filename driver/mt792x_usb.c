@@ -508,6 +508,14 @@ void mt792xu_disconnect(struct usb_interface *usb_intf)
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	cancel_work_sync(&dev->reset_work);
+	/* With MT76_MCU_RESET set, every MCU command sent while unregistering
+	 * fails at once as a timeout, and mt792x_reset() would queue the reset
+	 * work again: a chip reset and firmware reload during the teardown
+	 * (WARN in kthread_park, then a kernel panic). Set after the cancel, so
+	 * the reset work cannot rewrite this bitfield word concurrently.
+	 */
+	dev->hw_init_done = false;
+	smp_mb();
 	cancel_work_sync(&dev->init_work);
 	mt76_worker_disable(&dev->mt76.tx_worker);
 	mt792xu_reset_work_cleanup(dev);
