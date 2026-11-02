@@ -251,12 +251,13 @@ struct mt7921_iqs {
 	u32 chain;		/* dense formats: RX chain (tune flag CHAIN1) */
 	u32 ring;		/* ICAP ring bytes of the running stream */
 	u32 fmt;		/* MT7921_IQ_FMT_* of the running stream */
-	/* A stream whose first cursor is 32 mod 128 bytes slips about half of
-	 * its 128-byte DMA lines; such a generation is dropped and restarted.
+	/* A stream starting at a slip-prone cursor (mod 128 bytes) slips many
+	 * of its 128-byte DMA lines; such a generation is dropped and restarted.
 	 */
 	u32 align_gen;		/* last generation whose alignment was checked */
 	u32 bad_gen;
 	u32 realigns;
+	u32 realign_run;	/* restarts in a row */
 	u64 realign_drops;
 	struct work_struct realign_work;
 	/* 80 MHz: repeated frozen-ring snapshots instead of a stream */
@@ -346,6 +347,31 @@ static void mt7921_iqs_copy_in(struct mt7921_iqs *iqs, struct sk_buff *skb,
 		skb_copy_bits(skb, offset + first, iqs->buf, len - first);
 }
 
+/* Does a generation whose first block starts at this cursor slip many of
+ * its 128-byte DMA lines (the line's first 8-byte unit twice, its last one
+ * lost)? Per format, one bit per 16-byte step of the cursor mod 128:
+ * - PACK96: 32, about half of all lines;
+ * - DENSE80 (320 MB/s): 48, 64 and 112, 1.7-5 % of lines, against 0.02 %
+ *   at 0, 16, 80 and 96 (38 starts, 2026-11-02); at 20 MHz off center
+ *   each slip is a 180 degree phase step, so poor starts lost most
+ *   off-center packets;
+ * - DENSE40: none at any alignment.
+ * 32 stays in every set (restarted before it could be measured).
+ */
+#define IQS_SLIP_ALIGN		BIT(32 / 16)
+#define IQS_SLIP_ALIGN_DENSE80	(BIT(32 / 16) | BIT(48 / 16) | BIT(64 / 16) | BIT(112 / 16))
+#define IQS_REALIGN_MAX		16
+
+static bool mt7921_iqs_slip_align(u32 flags, u32 cursor)
+{
+	u32 fmt = (flags >> 4) & 0xf;
+	u32 bad = IQS_SLIP_ALIGN;
+
+	if (fmt == MT7921_IQ_FMT_DENSE80 || fmt == MT7921_IQ_FMT_DENSE80_C1)
+		bad = IQS_SLIP_ALIGN_DENSE80;
+	return !(cursor & 15) && (bad & BIT((cursor & 127) / 16));
+}
+
 bool mt7921_iqs_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 {
 	struct mt7921_iqs *iqs = mt7921_iqs_get(dev);
@@ -384,18 +410,22 @@ bool mt7921_iqs_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 		goto out;
 	}
 
-	/* First block of a generation: a start 32 bytes into a 128-byte DMA
-	 * line slips about half of all lines (in PACK96 each slip loses data),
-	 * so such a generation is dropped and restarted. Kept for DENSE40/80
-	 * too: their tone tests saw no slips, but none started at that
-	 * alignment.
+	/* First block of a generation: at some start positions in the 128-byte
+	 * DMA line, many lines slip (see mt7921_iqs_slip_align()), so such a
+	 * generation is dropped and restarted, up to IQS_REALIGN_MAX times in
+	 * a row.
 	 */
 	if (payload_len && gen != iqs->align_gen) {
 		iqs->align_gen = gen;
-		if ((le32_to_cpu(hdr->cursor) & 127) == 32) {
+		if (mt7921_iqs_slip_align(le32_to_cpu(hdr->flags),
+					  le32_to_cpu(hdr->cursor)) &&
+		    iqs->realign_run < IQS_REALIGN_MAX) {
 			iqs->bad_gen = gen;
 			iqs->realigns++;
+			iqs->realign_run++;
 			schedule_work(&iqs->realign_work);
+		} else {
+			iqs->realign_run = 0;
 		}
 	}
 	if (gen == iqs->bad_gen) {
@@ -2077,6 +2107,7 @@ static int mt7921_iqs_misc_open(struct inode *inode, struct file *file)
 	iqs->chain = 0;
 	iqs->align_gen = 0;
 	iqs->bad_gen = 0;
+	iqs->realign_run = 0;
 	ret = mt7921_iqs_fw_start(iqs);
 	if (ret)
 		goto out;
