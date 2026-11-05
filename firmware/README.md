@@ -2,7 +2,7 @@
 
 `mt7961-iq-fw-v65.py` builds the I/Q firmware `iq_dma_v65` for the
 MT7921AU (MT7961) from the user's own linux-firmware file. It contains only
-the bytes the patch changes (2,834 bytes in 11 runs) plus two checksums. No
+the bytes the patch changes (2,830 bytes in 11 runs) plus two checksums. No
 MediaTek firmware is redistributed: the user patches the copy their
 distribution installed.
 
@@ -17,7 +17,7 @@ sudo install -m 644 WIFI_RAM_CODE_MT7961_1.bin /lib/firmware/mediatek/
 sha256 `b94217a951518a9c14095765f367bc5dd7698f2dc033941d6f18fc2ebd6a2ab9`.
 - Any other file is refused, and an already patched one is reported as such.
 - The result is checked against
-  `1c740c6fe17d9e3ccc175aaef74e10e5187b2bc404ec49096f8a21f1e9714e4f` before
+  `df3c6bcc256458953e64a38858c833a4a794e042c175dcce920850f407aab1f3` before
   it is written.
 - Python 3 standard library only; `.zst` input needs the `zstd` tool.
 
